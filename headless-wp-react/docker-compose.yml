@@ -1,0 +1,65 @@
+version: "3.8"
+
+services:
+  db:
+    image: mysql:8.0.36
+    container_name: headless-wp-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: wordpress
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  wordpress:
+    image: wordpress:6.5.5-php8.2-apache
+    container_name: headless-wp-wordpress
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_TABLE_PREFIX: wp_
+    ports:
+      - "8080:80"
+    volumes:
+      # Persist the entire WordPress installation (core, plugins, uploads, etc.)
+      - wp_data:/var/www/html
+      # Automatically load our must-use plugin for CORS and headless behavior
+      - ./wordpress/mu-plugins:/var/www/html/wp-content/mu-plugins
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: headless-wp-frontend
+    restart: unless-stopped
+    depends_on:
+      - wordpress
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+    ports:
+      - "3000:3000"
+    volumes:
+      # Mount source code for live editing
+      - ./frontend:/app
+      # Keep node_modules inside the container for performance
+      - /app/node_modules
+
+volumes:
+  db_data:
+  wp_data:
+
+
