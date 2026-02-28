@@ -3,7 +3,7 @@ version: "3.8"
 services:
   db:
     image: mysql:8.0.36
-    container_name: collegiate-review-db-prod
+    container_name: spark-db-prod
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: ${WORDPRESS_DB_ROOT_PASSWORD}
@@ -18,7 +18,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - collegiate-review-network
+      - spark-network
     logging:
       driver: "json-file"
       options:
@@ -27,7 +27,7 @@ services:
 
   wordpress:
     image: ${WORDPRESS_IMAGE:-wordpress:6.5.5-php8.2-apache}
-    container_name: collegiate-review-wordpress-prod
+    container_name: spark-wordpress-prod
     restart: always
     depends_on:
       db:
@@ -51,7 +51,7 @@ services:
       - "traefik.http.routers.wordpress.tls.certresolver=letsencrypt"
       - "traefik.http.services.wordpress.loadbalancer.server.port=80"
     networks:
-      - collegiate-review-network
+      - spark-network
     logging:
       driver: "json-file"
       options:
@@ -60,7 +60,7 @@ services:
 
   frontend:
     image: ${FRONTEND_IMAGE:-node:18-alpine}
-    container_name: collegiate-review-frontend-prod
+    container_name: spark-frontend-prod
     restart: always
     build:
       context: ./frontend
@@ -77,7 +77,7 @@ services:
       - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
       - "traefik.http.services.frontend.loadbalancer.server.port=3000"
     networks:
-      - collegiate-review-network
+      - spark-network
     logging:
       driver: "json-file"
       options:
@@ -87,7 +87,7 @@ services:
   # Traefik Reverse Proxy
   traefik:
     image: traefik:v2.10
-    container_name: collegiate-review-traefik
+    container_name: spark-traefik
     restart: always
     command:
       - "--api.insecure=true"
@@ -107,7 +107,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - letsencrypt:/letsencrypt
     networks:
-      - collegiate-review-network
+      - spark-network
 
 volumes:
   db_data_prod:
@@ -118,5 +118,5 @@ volumes:
     driver: local
 
 networks:
-  collegiate-review-network:
+  spark-network:
     driver: bridge

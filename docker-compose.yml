@@ -1,7 +1,7 @@
 services:
   db:
     image: mysql:8.0.36
-    container_name: collegiate-review-db
+    container_name: spark-db
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${WORDPRESS_DB_ROOT_PASSWORD:-rootpassword}
@@ -16,11 +16,11 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - collegiate-review-network
+      - spark-network
 
   wordpress:
     image: wordpress:6.5.5-php8.2-apache
-    container_name: collegiate-review-wordpress
+    container_name: spark-wordpress
     restart: unless-stopped
     depends_on:
       db:
@@ -40,13 +40,13 @@ services:
     ports:
       - "8080:80"
     networks:
-      - collegiate-review-network
+      - spark-network
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: collegiate-review-frontend
+    container_name: spark-frontend
     restart: unless-stopped
     depends_on:
       - wordpress
@@ -59,14 +59,14 @@ services:
       - ./frontend/src:/app/src:ro
       - ./frontend/public:/app/public:ro
     networks:
-      - collegiate-review-network
+      - spark-network
 
 volumes:
   db_data:
   wordpress_data:
 
 networks:
-  collegiate-review-network:
+  spark-network:
     driver: bridge
 
 
