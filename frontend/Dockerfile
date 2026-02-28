@@ -1,30 +1,41 @@
-FROM node:18.20.2-alpine
+FROM node:18.20.2-alpine AS builder
 
-# Set the working directory inside the container
 WORKDIR /app
 
-# Ensure locally installed node modules are found
-ENV PATH="/app/node_modules/.bin:${PATH}"
-
-# Configure the dev server to listen on all interfaces inside Docker
-ENV HOST=0.0.0.0
-ENV PORT=3000
-
-# Improve file watching behavior inside Docker (especially on Windows/macOS)
-ENV CHOKIDAR_USEPOLLING=true
-ENV WATCHPACK_POLLING=true
-
-# Install dependencies first (leverages Docker layer caching)
+# Copy package files
 COPY package*.json ./
-RUN npm install --legacy-peer-deps
 
-# Copy the rest of the application source
+# Install dependencies
+RUN npm install --prefer-offline --no-audit
+
+# Copy application source
 COPY . .
 
-# Expose the development server port
+# Build the application
+RUN npm run build
+
+
+# Production stage
+FROM node:18.20.2-alpine
+
+WORKDIR /app
+
+# Install serve to run the production build
+RUN npm install -g serve
+
+# Copy build output from builder
+COPY --from=builder /app/build ./build
+COPY --from=builder /app/package*.json ./
+
+# Expose production port
 EXPOSE 3000
 
-# Start the React development server
-CMD ["npm", "start"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+
+# Start the production server
+CMD ["serve", "-s", "build", "-l", "3000"]
+
 
 

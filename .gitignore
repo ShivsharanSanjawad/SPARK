@@ -1,0 +1,62 @@
+# Frontend
+node_modules/
+dist/
+build/
+.next/
+npm-debug.log
+yarn-error.log
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.env.local
+.env.*.local
+
+# OS
+Thumbs.db
+.AppleDouble
+.LSOverride
+._*
+
+# Production
+.netlify
+.vercel
+
+# Dependencies
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Environment
+.env
+.env.production.local
+.env.development.local
+.env.test.local
+
+# Logs
+*.log
+
+# Cache
+.cache/
+.eslintcache
+
+# Webpack
+.webpack/
+
+WordPress
+wp-config.php
+wp-content/
+wp-includes/
+wp-admin/
+index.php
+license.txt
+readme.html
+xmlrpc.php
+wp-*.php
+mysql/
+db_data/
+wordpress_data/

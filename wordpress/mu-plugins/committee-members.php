@@ -53,6 +53,65 @@ add_action('init', function () {
     ];
 
     register_post_type('committee_member', $args);
+
+    // Register "position" meta field for REST API access
+    register_post_meta('committee_member', 'position', [
+        'show_in_rest'  => true,
+        'single'        => true,
+        'type'          => 'string',
+        'default'       => '',
+        'auth_callback' => function () {
+            return current_user_can('edit_posts');
+        },
+    ]);
 });
+
+/**
+ * Add a "Position of Responsibility" meta box in the editor.
+ */
+add_action('add_meta_boxes', function () {
+    add_meta_box(
+        'committee_member_position',
+        'Position of Responsibility',
+        function ($post) {
+            $value = get_post_meta($post->ID, 'position', true);
+            wp_nonce_field('committee_member_position_nonce', 'position_nonce');
+            echo '<p style="margin-bottom:6px"><label for="committee_position"><strong>Enter the member\'s position / role:</strong></label></p>';
+            echo '<input type="text" id="committee_position" name="committee_position" value="' . esc_attr($value) . '" style="width:100%;font-size:14px;padding:8px;" placeholder="e.g. President, Secretary, Advisor" />';
+            echo '<p class="description">This is prominently shown on the committee listing page and member detail page.</p>';
+        },
+        'committee_member',
+        'normal',
+        'high'
+    );
+});
+
+/**
+ * Save the position meta on post save.
+ */
+add_action('save_post_committee_member', function ($post_id) {
+    if (!isset($_POST['position_nonce']) || !wp_verify_nonce($_POST['position_nonce'], 'committee_member_position_nonce')) {
+        return;
+    }
+    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
+        return;
+    }
+    if (!current_user_can('edit_post', $post_id)) {
+        return;
+    }
+    if (isset($_POST['committee_position'])) {
+        update_post_meta($post_id, 'position', sanitize_text_field($_POST['committee_position']));
+    }
+});
+
+/**
+ * Ensure the position meta is always present in REST API responses.
+ */
+add_filter('rest_prepare_committee_member', function ($response, $post) {
+    $data = $response->get_data();
+    $data['position'] = get_post_meta($post->ID, 'position', true) ?: '';
+    $response->set_data($data);
+    return $response;
+}, 10, 2);
 
 

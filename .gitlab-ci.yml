@@ -1,0 +1,107 @@
+# GitLab CI/CD Pipeline
+# This pipeline builds and deploys the application to Docker environments
+
+stages:
+  - build
+  - test
+  - deploy
+
+variables:
+  REGISTRY: "registry.gitlab.com"
+  REGISTRY_IMAGE: "${REGISTRY}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}"
+  DOCKER_HOST: "tcp://docker:2375"
+  DOCKER_TLS_CERTDIR: ""
+
+# Build Frontend Image
+build:frontend:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -t ${REGISTRY_IMAGE}:frontend-${CI_COMMIT_SHORT_SHA} frontend/
+    - docker tag ${REGISTRY_IMAGE}:frontend-${CI_COMMIT_SHORT_SHA} ${REGISTRY_IMAGE}:frontend-latest
+    - docker push ${REGISTRY_IMAGE}:frontend-${CI_COMMIT_SHORT_SHA}
+    - docker push ${REGISTRY_IMAGE}:frontend-latest
+  only:
+    - main
+    - develop
+  cache:
+    paths:
+      - frontend/node_modules/
+
+# Build WordPress Image with Plugins
+build:wordpress:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -f wordpress/Dockerfile -t ${REGISTRY_IMAGE}:wordpress-${CI_COMMIT_SHORT_SHA} .
+    - docker tag ${REGISTRY_IMAGE}:wordpress-${CI_COMMIT_SHORT_SHA} ${REGISTRY_IMAGE}:wordpress-latest
+    - docker push ${REGISTRY_IMAGE}:wordpress-${CI_COMMIT_SHORT_SHA}
+    - docker push ${REGISTRY_IMAGE}:wordpress-latest
+  only:
+    - main
+    - develop
+
+# Lint & Test
+test:frontend:
+  stage: test
+  image: node:18-alpine
+  before_script:
+    - cd frontend
+    - npm install
+  script:
+    - npm run build
+  artifacts:
+    paths:
+      - frontend/build/
+    expire_in: 1 day
+  only:
+    - main
+    - develop
+
+# Deploy to Staging
+deploy:staging:
+  stage: deploy
+  image: docker-compose:latest
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - export FRONTEND_IMAGE=${REGISTRY_IMAGE}:frontend-${CI_COMMIT_SHORT_SHA}
+    - export WORDPRESS_IMAGE=${REGISTRY_IMAGE}:wordpress-${CI_COMMIT_SHORT_SHA}
+    - docker-compose -f docker-compose.prod.yml pull
+    - docker-compose -f docker-compose.prod.yml up -d
+    - docker-compose -f docker-compose.prod.yml exec -T wordpress wp core install --url="${STAGING_URL}" --title="${APP_TITLE}" --admin_user="${WP_ADMIN_USER}" --admin_email="${WP_ADMIN_EMAIL}" --admin_password="${WP_ADMIN_PASSWORD}" --skip-email || true
+  environment:
+    name: staging
+    url: "${STAGING_URL}"
+    deployment_tier: staging
+  only:
+    - develop
+  when: manual
+
+# Deploy to Production
+deploy:production:
+  stage: deploy
+  image: docker-compose:latest
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - export FRONTEND_IMAGE=${REGISTRY_IMAGE}:frontend-${CI_COMMIT_SHORT_SHA}
+    - export WORDPRESS_IMAGE=${REGISTRY_IMAGE}:wordpress-${CI_COMMIT_SHORT_SHA}
+    - docker-compose -f docker-compose.prod.yml pull
+    - docker-compose -f docker-compose.prod.yml up -d
+    - docker-compose -f docker-compose.prod.yml exec -T wordpress wp core install --url="${PRODUCTION_URL}" --title="${APP_TITLE}" --admin_user="${WP_ADMIN_USER}" --admin_email="${WP_ADMIN_EMAIL}" --admin_password="${WP_ADMIN_PASSWORD}" --skip-email || true
+  environment:
+    name: production
+    url: "${PRODUCTION_URL}"
+    deployment_tier: production
+  only:
+    - main
+  when: manual

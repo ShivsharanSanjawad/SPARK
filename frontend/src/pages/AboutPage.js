@@ -1,122 +1,115 @@
-import React, { useEffect, useState } from 'react';
-import { getPageBySlug, getCommitteeMembers } from '../api';
-import { getFeaturedImageUrl } from '../utils/media';
+import { useEffect, useState } from 'react';
+import { getPageBySlug } from '../services/apiService';
+import { useSiteSettings } from '../context/SiteContext';
+import CommitteeMembers from '../components/CommitteeMembers';
+import ContentRenderer from '../components/ContentRenderer';
+import { useReveal } from '../hooks/useAnimations';
+
+function RevealSection({ children, className = '' }) {
+  const [ref, visible] = useReveal();
+  return (
+    <div ref={ref} className={`reveal ${visible ? 'visible' : ''} ${className}`}>
+      {children}
+    </div>
+  );
+}
 
 function AboutPage() {
   const [page, setPage] = useState(null);
-  const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { settings } = useSiteSettings();
+  const [headerRef, headerVisible] = useReveal();
 
   useEffect(() => {
     let cancelled = false;
-
     async function load() {
       setLoading(true);
-      setError(null);
       try {
-        const [pageData, memberData] = await Promise.all([
-          getPageBySlug('about'),
-          getCommitteeMembers(),
-        ]);
-
+        const pageData = await getPageBySlug('about');
         if (!cancelled) {
-          if (!pageData) {
-            setError('About page not found in WordPress.');
-          } else {
-            setPage(pageData);
-            setMembers(memberData || []);
-          }
+          if (!pageData) setError('About page not found in WordPress.');
+          else setPage(pageData);
         }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err.message || 'Failed to load About page.');
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
+      } catch (err) { if (!cancelled) setError(err.message || 'Failed to load About page.'); }
+      finally { if (!cancelled) setLoading(false); }
     }
-
     load();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
   return (
-    <div className="page">
-      <section className="article-shell">
+    <div className="page-enter" style={{ minHeight: '100vh', background: 'var(--black)' }}>
+      {/* Header */}
+      <section className="pt-32 pb-16" style={{ background: 'var(--black)' }}>
+        <div ref={headerRef} className={`app-container reveal ${headerVisible ? 'visible' : ''}`}>
+          <div className="overline mb-4"><span className="overline-dot" /> Our Story</div>
+          <h1>About Spark</h1>
+          <p className="mt-4" style={{ color: 'var(--muted)', maxWidth: 500 }}>
+            Learn about our mission, the team, and what drives the journal forward.
+          </p>
+        </div>
+      </section>
+
+      {/* Content */}
+      <section className="app-container pb-16">
         {loading && (
-          <div className="status-message">Loading…</div>
+          <div style={{ maxWidth: 720, margin: '0 auto' }} className="space-y-4">
+            <div className="skeleton" style={{ height: 20 }} /><div className="skeleton" style={{ height: 20, width: '80%' }} /><div className="skeleton" style={{ height: 20 }} /><div className="skeleton" style={{ height: 20, width: '60%' }} />
+          </div>
         )}
 
         {error && !loading && (
-          <div className="status-message status-error">
-            {error}
+          <div className="p-4" style={{ background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)', color: 'var(--amber)' }}>
+            <p style={{ fontWeight: 600 }}>Error</p><p style={{ fontSize: '0.8rem', color: 'var(--dim)' }}>{error}</p>
           </div>
         )}
 
         {page && !loading && !error && (
-          <>
-            <h1 className="article-title">
-              {page.title?.rendered || 'About'}
-            </h1>
-            <div
-              className="article-body"
-              dangerouslySetInnerHTML={{
-                __html: page.content?.rendered || '',
-              }}
-            />
-
-            {/* Committee members section */}
-            {members.length > 0 && (
-              <section className="about-committee">
-                <h2 className="section-title-large">Editorial Committee</h2>
-                <p className="section-intro">
-                  The committee responsible for the curation and direction of the journal.
-                </p>
-                <div className="about-members-grid">
-                  {members.map((member) => {
-                    const imageUrl = getFeaturedImageUrl(member);
-                    return (
-                      <article key={member.id} className="about-member-card">
-                        <div className="about-member-photo-wrapper">
-                          {imageUrl ? (
-                            <img
-                              src={imageUrl}
-                              alt={member.title?.rendered || 'Committee member'}
-                              className="about-member-photo"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <div className="about-member-placeholder">
-                              <span>{member.title?.rendered?.[0] || 'M'}</span>
-                            </div>
-                          )}
-                        </div>
-                        <h3 className="about-member-name">
-                          {member.title?.rendered || 'Committee Member'}
-                        </h3>
-                        {member.excerpt?.rendered && (
-                          <div
-                            className="about-member-role"
-                            dangerouslySetInnerHTML={{
-                              __html: member.excerpt.rendered,
-                            }}
-                          />
-                        )}
-                      </article>
-                    );
-                  })}
-                </div>
-              </section>
-            )}
-          </>
+          <RevealSection>
+            <div style={{ maxWidth: 720, margin: '0 auto' }}>
+              <div className="prose-dark mb-16">
+                <ContentRenderer content={page.content?.rendered} />
+              </div>
+            </div>
+          </RevealSection>
         )}
       </section>
+
+      {/* Committee Members */}
+      <section className="py-20" style={{ background: 'var(--surface)' }}>
+        <div className="app-container">
+          <RevealSection>
+            <div className="mb-12 text-center" style={{ maxWidth: 600, margin: '0 auto 3rem' }}>
+              <div className="overline justify-center mb-4"><span className="overline-dot" /> The Team</div>
+              <h2>Editorial Committee</h2>
+              <p className="mt-4" style={{ color: 'var(--muted)' }}>
+                Meet the talented individuals who curate and direct the journal.
+              </p>
+            </div>
+          </RevealSection>
+          <RevealSection>
+            <CommitteeMembers />
+          </RevealSection>
+        </div>
+      </section>
+
+      {/* CTA */}
+      {settings.about_cta_title && (
+        <section className="py-24 text-center" style={{ background: 'var(--black)' }}>
+          <div className="app-container">
+            <RevealSection className="space-y-6" style={{ maxWidth: 600, margin: '0 auto' }}>
+              <h2>{settings.about_cta_title}</h2>
+              <p style={{ color: 'var(--muted)' }}>{settings.about_cta_text}</p>
+              {settings.about_cta_button && (
+                <a href={settings.about_cta_url} className="btn btn-amber inline-flex">
+                  {settings.about_cta_button}
+                </a>
+              )}
+            </RevealSection>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

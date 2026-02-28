@@ -1,8 +1,8 @@
 {
   "name": "headless-wp-react-frontend",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "React frontend for a headless WordPress CMS running entirely in Docker",
+  "description": "Modern React frontend for headless WordPress with custom design blocks",
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
@@ -13,11 +13,19 @@
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-router-dom": "6.22.3",
-    "react-scripts": "5.0.1"
+    "react-scripts": "5.0.1",
+    "axios": "^1.6.0",
+    "classnames": "^2.3.2",
+    "react-markdown": "^8.0.7",
+    "remark-gfm": "^3.0.1",
+    "prop-types": "^15.8.1"
   },
   "devDependencies": {
     "ajv": "8.12.0",
-    "ajv-keywords": "5.1.0"
+    "ajv-keywords": "5.1.0",
+    "tailwindcss": "^3.3.6",
+    "postcss": "^8.4.31",
+    "autoprefixer": "^10.4.16"
   },
   "proxy": "http://wordpress:80",
   "browserslist": {
